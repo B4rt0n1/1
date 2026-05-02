@@ -12,6 +12,7 @@ import (
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 
+	"payment-service/internal/broker"
 	"payment-service/internal/repository"
 	transport "payment-service/internal/transport/grpc"
 	"payment-service/internal/usecase"
@@ -35,7 +36,15 @@ func main() {
 	}
 
 	repo := repository.NewPostgresPaymentRepository(db)
-	uc := usecase.NewPaymentUseCase(repo)
+	publisher, err := broker.NewRabbitMQPublisher(os.Getenv("RABBITMQ_URL"), os.Getenv("RABBITMQ_QUEUE"))
+	if err != nil {
+		log.Fatalf("failed to connect to RabbitMQ: %v", err)
+	}
+	defer func() {
+		_ = publisher.Close()
+	}()
+
+	uc := usecase.NewPaymentUseCase(repo, publisher)
 	grpcServerHandler := transport.NewPaymentGrpcServer(uc)
 
 	port := os.Getenv("GRPC_PORT")

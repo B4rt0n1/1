@@ -6,6 +6,8 @@ require (
 	github.com/B4rt0n1/protoB v0.0.0-20260413185129-402d38b336bc
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0
+	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.12.3
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 )

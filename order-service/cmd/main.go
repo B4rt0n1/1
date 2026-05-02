@@ -14,23 +14,21 @@ import (
 
 	"order-service/internal/repository"
 	"order-service/internal/transport/grpc/client"
+	ginhttp "order-service/internal/transport/grpc/http"
 	"order-service/internal/transport/grpc/server"
-	ginhttp "order-service/internal/transport/http"
 	"order-service/internal/usecase"
 
-	pb "https://github.com/B4rt0n1/protoB.git/order"
+	pb "github.com/B4rt0n1/protoB/order"
 )
 
 func main() {
 	_ = godotenv.Load()
 
-	// 1. Database Connection
 	db, err := sql.Open("postgres", os.Getenv("DB_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// 2. Dial Payment gRPC Server
 	paymentAddr := os.Getenv("PAYMENT_GRPC_ADDR")
 	conn, err := grpc.Dial(paymentAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -38,12 +36,10 @@ func main() {
 	}
 	defer conn.Close()
 
-	// 3. Composition Root / DI
 	repo := repository.NewPostgresOrderRepository(db)
 	paymentClient := client.NewPaymentGrpcClient(conn)
 	uc := usecase.NewOrderUseCase(repo, paymentClient)
 
-	// 4. Start gRPC Server for Order Streaming Updates
 	go func() {
 		lis, err := net.Listen("tcp", os.Getenv("ORDER_GRPC_PORT"))
 		if err != nil {
@@ -55,7 +51,6 @@ func main() {
 		grpcServer.Serve(lis)
 	}()
 
-	// 5. Start External REST API (Gin)
 	r := gin.Default()
 	r.Use(ginhttp.CORSMiddleware())
 

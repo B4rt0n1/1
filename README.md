@@ -23,7 +23,7 @@ graph TD
         
         O_REST --> O_UC
         O_gRPC_Server --> O_UC
-        O_UC --> O_Repo[(Order DB - Port 54321)]
+        O_UC --> O_Repo[(Order DB - Port 5444)]
         O_UC --> O_gRPC_Client
     end
 

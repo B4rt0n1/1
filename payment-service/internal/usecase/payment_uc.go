@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"payment-service/internal/broker"
 	"payment-service/internal/domain"
 
 	"github.com/google/uuid"
@@ -15,11 +16,12 @@ type PaymentRepository interface {
 }
 
 type PaymentUseCase struct {
-	repo PaymentRepository
+	repo      PaymentRepository
+	publisher broker.EventPublisher
 }
 
-func NewPaymentUseCase(r PaymentRepository) *PaymentUseCase {
-	return &PaymentUseCase{repo: r}
+func NewPaymentUseCase(r PaymentRepository, p broker.EventPublisher) *PaymentUseCase {
+	return &PaymentUseCase{repo: r, publisher: p}
 }
 
 func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, orderID string, amount int64) (*domain.Payment, error) {
@@ -37,6 +39,18 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, orderID string, am
 	}
 
 	if err := uc.repo.Save(ctx, payment); err != nil {
+		return nil, err
+	}
+
+	event := &broker.PaymentEvent{
+		EventID:       payment.TransactionID,
+		OrderID:       payment.OrderID,
+		Amount:        payment.Amount,
+		CustomerEmail: "user@example.com",
+		Status:        payment.Status,
+	}
+
+	if err := uc.publisher.PublishPaymentCompleted(ctx, event); err != nil {
 		return nil, err
 	}
 

@@ -1,4 +1,10 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
   order_db:
     image: postgres:latest
     environment:
@@ -7,6 +13,8 @@ services:
       POSTGRES_DB: order_db
     ports:
       - "5444:5432"
+    volumes:
+      - ./migrations/init_order_db.sql:/docker-entrypoint-initdb.d/init_order_db.sql:ro
 
   payment_db:
     image: postgres:latest
@@ -16,3 +24,43 @@ services:
       POSTGRES_DB: payment_db
     ports:
       - "5433:5432"
+    volumes:
+      - ./migrations/init_payment_db.sql:/docker-entrypoint-initdb.d/init_payment_db.sql:ro
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    depends_on:
+      - order_db
+      - payment-service
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: postgres://user:pass@order_db:5432/order_db?sslmode=disable
+      PAYMENT_GRPC_ADDR: payment-service:50051
+      ORDER_GRPC_PORT: :50052
+      REST_PORT: :8080
+
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    depends_on:
+      - payment_db
+      - rabbitmq
+    environment:
+      DB_URL: postgres://user:pass@payment_db:5432/payment_db?sslmode=disable
+      GRPC_PORT: :50051
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_QUEUE: payment.completed
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_QUEUE: payment.completed

@@ -37,7 +37,7 @@ func (s *PaymentGrpcServer) ListPayments(ctx context.Context, req *pb.ListPaymen
 
 	domainPayments, err := s.uc.GetPaymentsByRange(ctx, min, max)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return nil, status.Errorf(codes.InvalidArgument, "failed to get payments: %v", err)
 	}
 
 	var pbPayments []*pb.PaymentResponse
