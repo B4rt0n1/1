@@ -41,3 +41,17 @@ graph TD
     Client -- "POST /orders (REST)" --> O_REST
     O_gRPC_Client -- "gRPC Unary (ProcessPayment)" --> P_Interceptor
     gRPC_Client -. "gRPC Server-Side Stream (SubscribeToOrderUpdates)" .-> O_gRPC_Server
+```
+
+---
+
+## Idempotency and ACK Logic
+
+### Idempotency Strategy
+The notification service implements idempotency using an in-memory deduper that tracks processed event IDs. If a duplicate event ID is received, the message is acknowledged and skipped to prevent reprocessing.
+
+### ACK Logic Implementation
+The notification service uses manual ACK/NACK:
+- On successful processing, the message is acknowledged (ACK).
+- On failure, the message is negatively acknowledged (NACK), triggering retries up to 3 attempts.
+- After 3 failed retries, the message is routed to the Dead Letter Queue (DLQ) for manual inspection.
