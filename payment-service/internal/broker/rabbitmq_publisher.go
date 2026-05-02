@@ -10,6 +10,12 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+const (
+	defaultQueueName       = "payment.completed"
+	deadLetterExchangeName = "payment.completed.dlx"
+	deadLetterRoutingKey   = "payment.completed.dlq"
+)
+
 type PaymentEvent struct {
 	EventID       string `json:"event_id"`
 	OrderID       string `json:"order_id"`
@@ -35,7 +41,7 @@ func NewRabbitMQPublisher(rabbitURL, queueName string) (*RabbitMQPublisher, erro
 		rabbitURL = "amqp://guest:guest@rabbitmq:5672/"
 	}
 	if queueName == "" {
-		queueName = "payment.completed"
+		queueName = defaultQueueName
 	}
 
 	conn, err := amqp.Dial(rabbitURL)
@@ -55,13 +61,18 @@ func NewRabbitMQPublisher(rabbitURL, queueName string) (*RabbitMQPublisher, erro
 		return nil, fmt.Errorf("enable publisher confirms: %w", err)
 	}
 
+	queueArgs := amqp.Table{
+		"x-dead-letter-exchange":    deadLetterExchangeName,
+		"x-dead-letter-routing-key": deadLetterRoutingKey,
+	}
+
 	_, err = ch.QueueDeclare(
 		queueName,
 		true,
 		false,
 		false,
 		false,
-		nil,
+		queueArgs,
 	)
 	if err != nil {
 		ch.Close()
